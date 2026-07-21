@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>批量申请 - 货源类型区分与细粒度选择 交互原型</title>
+<style>
+  :root {
+    --bg-page: #f0f2f5;
+    --bg-card: #ffffff;
+    --bg-section: #ffffff;
+    --bg-hover: #f5f7fa;
+    --bg-input: #ffffff;
+    --bg-table-header: #fafafa;
+    --border: #e8e8e8;
+    --border-light: #f0f0f0;
+    --text: #333333;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    --text-placeholder: #bfbfbf;
+    --primary: #1890ff;
+    --primary-hover: #40a9ff;
+    --primary-light: #e6f7ff;
+    --primary-border: #91d5ff;
+    --success: #52c41a;
+    --success-light: #f6ffed;
+    --success-border: #b7eb8f;
+    --warning: #faad14;
+    --warning-light: #fffbe6;
+    --warning-border: #ffe58f;
+    --danger: #ff4d4f;
+    --danger-light: #fff2f0;
+    --danger-border: #ffccc7;
+    --radius: 4px;
+    --radius-lg: 8px;
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.09);
+    --shadow-modal: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-page);
+    color: var(--text);
+    line-height: 1.5715;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* 步骤条 */
+  .stepper { display:flex; justify-content:center; padding:20px 0 12px; gap:0; align-items:center; }
+  .stepper-item { display:flex; align-items:center; gap:6px; }
+  .stepper-dot {
+    width:24px; height:24px; border-radius:50%; background:#fff; color:var(--text-muted);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500;
+    transition:all .3s; border:1px solid var(--border);
+  }
+  .stepper-dot.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .stepper-dot.done { background:var(--success); color:#fff; border-color:var(--success); }
+  .stepper-label { font-size:13px; color:var(--text-muted); transition:color .3s; }
+  .stepper-label.active { color:var(--primary); font-weight:500; }
+  .stepper-label.done { color:var(--success); }
+  .stepper-line { width:32px; height:1px; background:var(--border); margin:0 6px; transition:background .3s; }
+  .stepper-line.done { background:var(--success); }
+
+  /* 主容器 */
+  .main-container { max-width:800px; margin:0 auto; padding:0 24px 40px; }
+
+  /* 卡片 */
+  .page-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-card); }
+  .page-title { font-size:16px; font-weight:500; margin-bottom:16px; color:var(--text); }
+  .page-subtitle { font-size:13px; color:var(--text-secondary); margin-bottom:12px; }
+
+  /* 分区 */
+  .section { background:var(--bg-section); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .section-title { font-size:14px; font-weight:500; margin-bottom:12px; color:var(--text); }
+
+  /* 货源类型 Radio */
+  .radio-group { display:flex; gap:12px; }
+  .radio-item {
+    flex:1; padding:14px 16px; border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; transition:all .2s; text-align:center; background:#fff;
+  }
+  .radio-item:hover { border-color:var(--primary-border); background:var(--primary-light); }
+  .radio-item.selected { border-color:var(--primary); background:var(--primary-light); }
+  .radio-icon { font-size:24px; margin-bottom:4px; }
+  .radio-label { font-size:14px; font-weight:500; color:var(--text); }
+  .radio-count { font-size:12px; color:var(--text-secondary); margin-top:2px; }
+  .radio-check { width:16px; height:16px; border-radius:50%; border:1px solid var(--border); display:inline-block; margin-top:6px; transition:all .2s; }
+  .radio-item.selected .radio-check { border-color:var(--primary); background:var(--primary); box-shadow:inset 0 0 0 3px #fff; }
+
+  /* 提交范围 */
+  .range-group { display:flex; gap:12px; margin-bottom:12px; }
+  .range-item {
+    padding:10px 16px; border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:8px; background:#fff;
+  }
+  .range-item:hover { border-color:var(--primary-border); }
+  .range-item.selected { border-color:var(--primary); background:var(--primary-light); }
+  .range-check { width:14px; height:14px; border-radius:50%; border:1px solid var(--border); transition:all .2s; }
+  .range-item.selected .range-check { border-color:var(--primary); background:var(--primary); box-shadow:inset 0 0 0 2.5px #fff; }
+  .range-text { font-size:13px; color:var(--text); }
+
+  /* 篮选区域 */
+  .range-hint { font-size:13px; color:var(--text-muted); text-align:center; padding:12px 0; }
+  .filter-area { display:none; margin-top:12px; padding:12px; background:var(--bg-hover); border:1px solid var(--border-light); border-radius:var(--radius); }
+  .filter-area.visible { display:block; }
+  .filter-row { display:flex; gap:12px; }
+  .filter-field { flex:1; }
+  .filter-label { font-size:13px; color:var(--text-secondary); margin-bottom:4px; }
+  .filter-select {
+    width:100%; padding:6px 32px 6px 10px; background:#fff; border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text); font-size:13px; cursor:pointer;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23999'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center;
+  }
+  .filter-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light); }
+
+  /* 筛选预览 */
+  .preview-bar { padding:8px 12px; background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius); font-size:13px; color:var(--primary); margin-top:10px; text-align:center; }
+
+  /* 须知提示框 */
+  .notice-box { padding:12px 16px; background:var(--warning-light); border:1px solid var(--warning-border); border-radius:var(--radius); margin-bottom:16px; }
+  .notice-title { font-size:14px; font-weight:500; color:var(--warning); margin-bottom:8px; }
+  .notice-list { list-style:none; }
+  .notice-list li { font-size:13px; color:var(--text-secondary); padding:3px 0 3px 14px; position:relative; }
+  .notice-list li::before { content:"•"; position:absolute; left:2px; color:var(--warning); font-size:14px; }
+
+  /* 按钮 */
+  .btn-row { display:flex; gap:8px; justify-content:center; margin-top:20px; }
+  .btn {
+    padding:5px 16px; border:1px solid var(--border); border-radius:var(--radius);
+    font-size:14px; font-weight:400; cursor:pointer; transition:all .2s;
+    line-height:1.5715; height:32px;
+  }
+  .btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .btn-primary:hover { background:var(--primary-hover); border-color:var(--primary-hover); }
+  .btn-primary:disabled { background:#f5f5f5; color:var(--text-muted); border-color:var(--border); cursor:not-allowed; }
+  .btn-secondary { background:#fff; color:var(--text); border-color:var(--border); }
+  .btn-secondary:hover { color:var(--primary); border-color:var(--primary); }
+
+  /* 表格 */
+  .table-wrap { overflow-x:auto; }
+  .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .data-table th { padding:8px 8px; font-weight:500; color:var(--text-secondary); background:var(--bg-table-header); border-bottom:1px solid var(--border); text-align:left; font-size:13px; }
+  .data-table td { padding:8px 8px; color:var(--text); border-bottom:1px solid var(--border-light); }
+  .data-table tr:hover td { background:var(--primary-light); }
+  .data-table .status-ok { color:var(--success); }
+  .data-table .status-warn { color:var(--warning); }
+
+  /* 表格内下拉 */
+  .inline-select {
+    padding:4px 24px 4px 8px; background:#fff; border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text); font-size:12px; width:130px; height:28px;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23999'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 6px center;
+  }
+  .inline-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light); }
+
+  /* 成功页面 */
+  .success-icon { text-align:center; font-size:40px; margin-bottom:8px; }
+  .success-title { text-align:center; font-size:16px; font-weight:500; color:var(--success); margin-bottom:20px; }
+  .result-card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:10px; }
+  .result-group-title { font-size:14px; font-weight:500; color:var(--text); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .result-badge { background:var(--primary); color:#fff; padding:1px 8px; border-radius:10px; font-size:12px; font-weight:500; }
+  .result-item { padding:6px 12px; font-size:13px; color:var(--text-secondary); border-left:2px solid var(--primary-border); margin-bottom:2px; }
+  .result-summary { text-align:center; padding:10px; font-size:14px; color:var(--text-secondary); border-top:1px solid var(--border); margin-top:10px; }
+  .result-summary strong { color:var(--primary); }
+  .tip-bar { padding:8px 12px; background:var(--primary-light); border-radius:var(--radius); font-size:12px; color:var(--text-secondary); text-align:center; margin-top:12px; }
+
+  /* 页面切换 */
+  .page { display:none; }
+  .page.visible { display:block; }
+
+  /* 弹窗 */
+  .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:100; justify-content:center; align-items:center; }
+  .modal-overlay.visible { display:flex; }
+  .modal-box { background:#fff; border-radius:var(--radius-lg); padding:20px 24px; max-width:400px; width:90%; box-shadow:var(--shadow-modal); }
+  .modal-title { font-size:16px; font-weight:500; margin-bottom:8px; color:var(--text); }
+  .modal-body { font-size:14px; color:var(--text-secondary); margin-bottom:16px; line-height:1.5715; }
+  .modal-btns { display:flex; gap:8px; justify-content:flex-end; }
+
+  /* Toast */
+  .toast { display:none; position:fixed; top:16px; left:50%; transform:translateX(-50%); padding:8px 20px; background:var(--danger); color:#fff; border-radius:var(--radius); font-size:14px; z-index:200; box-shadow:var(--shadow-modal); }
+  .toast.visible { display:block; }
+
+  /* 默认值标记 */
+  .default-tag { font-size:11px; color:var(--text-muted); margin-left:4px; }
+
+  @media (max-width:600px) {
+    .radio-group { flex-direction:column; }
+    .filter-row { flex-direction:column; }
+    .stepper-label { font-size:11px; }
+    .main-container { padding:0 12px 24px; }
+    .page-card { padding:16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stepper -->
+<div class="stepper">
+  <div class="stepper-item">
+    <div class="stepper-dot" id="dot1">1</div>
+    <div class="stepper-label" id="label1">申请须知</div>
+  </div>
+  <div class="stepper-line" id="line1"></div>
+  <div class="stepper-item">
+    <div class="stepper-dot" id="dot2">2</div>
+    <div class="stepper-label" id="label2">选择范围</div>
+  </div>
+  <div class="stepper-line" id="line2"></div>
+  <div class="stepper-item" id="stepperItem3">
+    <div class="stepper-dot" id="dot3">3</div>
+    <div class="stepper-label" id="label3">完善信息</div>
+  </div>
+  <div class="stepper-line" id="line3"></div>
+  <div class="stepper-item">
+    <div class="stepper-dot" id="dot4">4</div>
+    <div class="stepper-label" id="label4">提交结果</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-title">⚠️ 确认提交</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmSubmit()">确认提交</button>
+    </div>
+  </div>
+</div>
+
+<div class="main-container">
+
+<!-- Step 1: Notice -->
+<div class="page visible" id="page1">
+  <div class="page-card">
+    <div class="page-title">申请确认须知</div>
+    <div class="notice-box">
+      <div class="notice-title">提交前请确认以下事项：</div>
+      <ul class="notice-list">
+        <li>提交后对应提交的数据将锁定并生成申请单，<strong style="color:var(--danger)">无法撤回修改</strong></li>
+        <li>货源为<strong>采购类物料</strong>：请先确认【今日下单预警中心】物料是否无采购价，如果存在无价格物料无法提交，需要后续手动下单</li>
+        <li>货源为<strong>调拨类物料</strong>：请核对费用承担部门和承担方</li>
+        <li>不同货源类型的物料将分别生成对应的申请单据</li>
+      </ul>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)">我知道了，开始申请</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2: Source Type & Range Selection -->
+<div class="page" id="page2">
+  <div class="page-card">
+    <div class="page-title">选择提交范围</div>
+
+    <div class="section">
+      <div class="section-title">一、请选择货源类型</div>
+      <div class="radio-group" id="sourceTypeGroup">
+        <div class="radio-item" onclick="selectSourceType('transfer')" id="radioTransfer">
+          <div class="radio-icon">🔄</div>
+          <div class="radio-label">调拨</div>
+          <div class="radio-check"></div>
+        </div>
+        <div class="radio-item" onclick="selectSourceType('purchase')" id="radioPurchase">
+          <div class="radio-icon">🛒</div>
+          <div class="radio-label">采购</div>
+          <div class="radio-check"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="rangeSection">
+      <div class="section-title">二、请选择提交范围</div>
+      <div class="range-hint" id="rangeHint">请先选择货源类型后再选择提交范围</div>
+      <div class="range-group" id="rangeGroup" style="display:none;">
+        <div class="range-item selected" onclick="selectRange('all')" id="rangeAll">
+          <div class="range-check"></div>
+          <div class="range-text">全量提交（当前货源类型下的所有物料）</div>
+        </div>
+        <div class="range-item" onclick="selectRange('custom')" id="rangeCustom">
+          <div class="range-check"></div>
+          <div class="range-text">自定义（选择具体的工厂/供应商组合）</div>
+        </div>
+      </div>
+
+      <div class="filter-area" id="filterTransfer">
+        <div class="filter-row">
+          <div class="filter-field">
+            <div class="filter-label">出方工厂</div>
+            <select class="filter-select" id="fromFactory" onchange="updatePreview()">
+              <option value="all">全部出方工厂</option>
+              <option value="F-A">工厂A</option>
+              <option value="F-B">工厂B</option>
+              <option value="F-C">工厂C</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <div class="filter-label">入方工厂</div>
+            <select class="filter-select" id="toFactory" onchange="updatePreview()">
+              <option value="all">全部入方工厂</option>
+              <option value="F-D">工厂D</option>
+              <option value="F-E">工厂E</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-area" id="filterPurchase">
+        <div class="filter-row">
+          <div class="filter-field">
+            <div class="filter-label">工厂</div>
+            <select class="filter-select" id="purchaseFactory" onchange="updatePreview()">
+              <option value="all">全部工厂</option>
+              <option value="F-D">工厂D</option>
+              <option value="F-E">工厂E</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <div class="filter-label">供应商</div>
+            <select class="filter-select" id="supplier" onchange="updatePreview()">
+              <option value="all">全部供应商</option>
+              <option value="S-X">供应商X</option>
+              <option value="S-Y">供应商Y</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-bar" id="previewBar">当前未选择货源类型，请先选择后再继续</div>
+    </div>
+
+    <div class="tip-bar" id="tipBarCustom" style="display:none">💡 未提交的物料将保留在待申请列表中，可后续再次提交</div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← 返回须知</button>
+      <button class="btn btn-primary" id="btnNext2" disabled onclick="handleStep2Next()">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 3: 完善调拨信息（仅调拨类进入） -->
+<div class="page" id="page3">
+  <div class="page-card">
+    <div class="page-title">完善调拨信息</div>
+    <div class="page-subtitle">费用承担方和承担部门已填入默认值，可按需修改后提交</div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="transferTable">
+        <thead>
+          <tr>
+            <th>序号</th>
+            <th>物料名称</th>
+            <th>出方工厂</th>
+            <th>入方工厂</th>
+            <th>温层</th>
+            <th>费用承担方</th>
+            <th>承担部门</th>
+          </tr>
+        </thead>
+        <tbody id="transferBody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)">← 返回选择范围</button>
+      <button class="btn btn-primary" onclick="trySubmit()">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Result -->
+<div class="page" id="page4">
+  <div class="page-card" style="text-align:center; padding:48px 24px;">
+    <div style="width:64px; height:64px; border-radius:50%; background:#52c41a; display:inline-flex; align-items:center; justify-content:center; margin-bottom:16px;">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="success-title">申请提交成功</div>
+    <div style="margin-top:28px; text-align:left; display:inline-block; font-size:14px; color:var(--text);">
+      已成功处理单据汇总：
+      <div id="resultSummaryList" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// === Mock Data - 调拨数据带默认值 ===
+const allTransferData = [
+  { id:1, name:'物料001-包装箱',   fromFactory:'工厂A', fromId:'F-A', toFactory:'工厂D', toId:'F-D', temp:'常温', costBearer:'入方', costDept:'物流部' },
+  { id:2, name:'物料002-标签贴纸', fromFactory:'工厂A', fromId:'F-A', toFactory:'工厂E', toId:'F-E', temp:'冷藏', costBearer:'入方', costDept:'仓储部' },
+  { id:3, name:'物料003-封箱胶带', fromFactory:'工厂B', fromId:'F-B', toFactory:'工厂D', toId:'F-D', temp:'常温', costBearer:'甲方', costDept:'物流部' },
+  { id:4, name:'物料004-保温泡沫', fromFactory:'工厂C', fromId:'F-C', toFactory:'工厂D', toId:'F-D', temp:'冷冻', costBearer:'入方', costDept:'仓储部' },
+  { id:5, name:'物料005-防撞垫',   fromFactory:'工厂C', fromId:'F-C', toFactory:'工厂E', toId:'F-E', temp:'常温', costBearer:'乙方', costDept:'物流部' },
+];
+const allPurchaseData = [
+  { id:6, name:'物料006-标签纸', factory:'工厂D', factoryId:'F-D', supplier:'供应商X', supplierId:'S-X', price:12.50, qty:100 },
+  { id:7, name:'物料007-墨水',   factory:'工厂E', factoryId:'F-E', supplier:'供应商Y', supplierId:'S-Y', price:null,  qty:50  },
+];
+
+// === State ===
+let state = {
+  sourceType: null,   // 'transfer' | 'purchase'
+  range: 'all',
+  fromFactory: 'all',
+  toFactory: 'all',
+  purchaseFactory: 'all',
+  supplier: 'all',
+  submittedIds: [],
+};
+
+// === Step Navigation ===
+function goStep(n) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('visible'));
+  document.getElementById('page' + n).classList.add('visible');
+  updateStepper(n);
+  if (n === 3) buildStep3();
+  if (n === 4) buildStep4();
+}
+
+function updateStepper(current) {
+  const isPurchase = state.sourceType === 'purchase';
+  const step3Item = document.getElementById('stepperItem3');
+  const line2El = document.getElementById('line2');
+  const line3El = document.getElementById('line3');
+
+  // 采购类：隐藏 Step 3，Step 4 显示为 Step 3
+  if (isPurchase) {
+    step3Item.style.display = 'none';
+    line2El.style.display = 'none';
+    line3El.style.display = 'none';
+    document.getElementById('dot4').textContent = '3';
+    document.getElementById('label4').textContent = '提交结果';
+  } else {
+    step3Item.style.display = '';
+    line2El.style.display = '';
+    line3El.style.display = '';
+    document.getElementById('dot3').textContent = '3';
+    document.getElementById('label3').textContent = '完善信息';
+    document.getElementById('dot4').textContent = '4';
+    document.getElementById('label4').textContent = '提交结果';
+  }
+
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById('dot' + i);
+    const label = document.getElementById('label' + i);
+    if (dot.style.display === 'none' || label.style.display === 'none') continue;
+    if (i < current) {
+      dot.className = 'stepper-dot done';
+      label.className = 'stepper-label done';
+    } else if (i === current) {
+      dot.className = 'stepper-dot active';
+      label.className = 'stepper-label active';
+    } else {
+      dot.className = 'stepper-dot';
+      label.className = 'stepper-label';
+    }
+  }
+  for (let i = 1; i <= 3; i++) {
+    const line = document.getElementById('line' + i);
+    if (line.style.display === 'none') continue;
+    line.className = i < current ? 'stepper-line done' : 'stepper-line';
+  }
+}
+
+// === Step 2 Logic ===
+function selectSourceType(type) {
+  state.sourceType = type;
+  state.range = 'all';
+  document.getElementById('radioTransfer').classList.toggle('selected', type === 'transfer');
+  document.getElementById('radioPurchase').classList.toggle('selected', type === 'purchase');
+
+  document.getElementById('rangeAll').classList.add('selected');
+  document.getElementById('rangeCustom').classList.remove('selected');
+  document.getElementById('filterTransfer').classList.remove('visible');
+  document.getElementById('filterPurchase').classList.remove('visible');
+
+  document.getElementById('fromFactory').value = 'all';
+  document.getElementById('toFactory').value = 'all';
+  document.getElementById('purchaseFactory').value = 'all';
+  document.getElementById('supplier').value = 'all';
+  state.fromFactory = 'all'; state.toFactory = 'all';
+  state.purchaseFactory = 'all'; state.supplier = 'all';
+
+  updatePreview();
+  updateNextBtn();
+
+  // 显示/隐藏范围选择区
+  document.getElementById('rangeHint').style.display = 'none';
+  document.getElementById('rangeGroup').style.display = '';
+  // 重置为全量
+  selectRange('all');
+}
+
+function selectRange(range) {
+  state.range = range;
+  document.getElementById('rangeAll').classList.toggle('selected', range === 'all');
+  document.getElementById('rangeCustom').classList.toggle('selected', range === 'custom');
+  document.getElementById('filterTransfer').classList.toggle('visible', state.sourceType === 'transfer' && range === 'custom');
+  document.getElementById('filterPurchase').classList.toggle('visible', state.sourceType === 'purchase' && range === 'custom');
+  document.getElementById('tipBarCustom').style.display = range === 'custom' ? '' : 'none';
+  updatePreview();
+}
+
+function updatePreview() {
+  state.fromFactory = document.getElementById('fromFactory').value;
+  state.toFactory = document.getElementById('toFactory').value;
+  state.purchaseFactory = document.getElementById('purchaseFactory').value;
+  state.supplier = document.getElementById('supplier').value;
+
+  const bar = document.getElementById('previewBar');
+  const count = getFilteredData().length;
+
+  if (!state.sourceType || state.range === 'all') {
+    bar.style.display = 'none';
+  } else if (count === 0) {
+    bar.textContent = '⚠️ 当前筛选条件下无可提交物料，请调整筛选条件';
+    bar.style.borderColor = 'var(--danger-border)'; bar.style.background = 'var(--danger-light)'; bar.style.color = 'var(--danger)';
+    bar.style.display = '';
+  } else {
+    bar.style.display = 'none';
+  }
+  updateNextBtn();
+}
+
+function updateNextBtn() {
+  const btn = document.getElementById('btnNext2');
+  const count = getFilteredData().length;
+  btn.disabled = !state.sourceType || (state.range === 'custom' && count === 0);
+  if (state.sourceType === 'purchase') {
+    btn.textContent = '直接提交申请';
+  } else if (state.sourceType === 'transfer') {
+    btn.textContent = '下一步：完善调拨信息';
+  } else {
+    btn.textContent = '下一步';
+  }
+}
+
+function getFilteredData() {
+  if (!state.sourceType) return [];
+  if (state.sourceType === 'transfer') {
+    let data = allTransferData;
+    if (state.range === 'custom') {
+      data = data.filter(d => {
+        const fromMatch = state.fromFactory === 'all' || d.fromId === state.fromFactory;
+        const toMatch = state.toFactory === 'all' || d.toId === state.toFactory;
+        return fromMatch && toMatch;
+      });
+    }
+    return data;
+  } else {
+    let data = allPurchaseData;
+    if (state.range === 'custom') {
+      data = data.filter(d => {
+        const factoryMatch = state.purchaseFactory === 'all' || d.factoryId === state.purchaseFactory;
+        const supplierMatch = state.supplier === 'all' || d.supplierId === state.supplier;
+        return factoryMatch && supplierMatch;
+      });
+    }
+    return data;
+  }
+}
+
+// === Step 2 → Next (采购直接提交，调拨进入完善信息) ===
+function handleStep2Next() {
+  if (state.sourceType === 'purchase') {
+    // 采购类：直接提交，跳过 Step 3
+    doSubmit();
+  } else {
+    // 调拨类：进入完善信息步骤
+    goStep(3);
+  }
+}
+
+// === Step 3 Build (仅调拨类) ===
+function buildStep3() {
+  const filtered = getFilteredData();
+  const tbodyT = document.getElementById('transferBody');
+  tbodyT.innerHTML = '';
+  filtered.forEach((d, i) => {
+    const bearerOptions = ['入方','甲方','乙方'].map(v =>
+      `<option value="${v}" ${d.costBearer === v ? 'selected' : ''}>${v}承担</option>`
+    ).join('');
+    const deptOptions = ['物流部','仓储部','采购部'].map(v =>
+      `<option value="${v}" ${d.costDept === v ? 'selected' : ''}>${v}</option>`
+    ).join('');
+    tbodyT.innerHTML += `<tr>
+      <td>${i+1}</td>
+      <td>${d.name}</td>
+      <td>${d.fromFactory}</td>
+      <td>${d.toFactory}</td>
+      <td>${d.temp}</td>
+      <td><select class="inline-select" data-id="${d.id}" data-field="costBearer">${bearerOptions}</select></td>
+      <td><select class="inline-select" data-id="${d.id}" data-field="costDept">${deptOptions}</select></td>
+    </tr>`;
+  });
+}
+
+// === Submit Logic ===
+function trySubmit() {
+  // 调拨类：费用承担方和承担部门已有默认值，直接提交
+  doSubmit();
+}
+
+function doSubmit() {
+  const filtered = getFilteredData();
+  state.submittedIds = filtered.map(d => d.id);
+  goStep(4);
+}
+
+// === Step 4 Build ===
+function buildStep4() {
+  const filtered = getFilteredData();
+  const isTransfer = state.sourceType === 'transfer';
+  const listEl = document.getElementById('resultSummaryList');
+
+  if (isTransfer) {
+    listEl.innerHTML = `<div style="padding:4px 0;">- 调拨类申请：${filtered.length} 条</div>`;
+  } else {
+    listEl.innerHTML = `<div style="padding:4px 0;">- 采购类申请：${filtered.length} 条</div>`;
+  }
+}
+
+// === Reset & Continue ===
+function resetAndContinue() {
+  allTransferData.splice(0, allTransferData.length, ...allTransferData.filter(d => !state.submittedIds.includes(d.id)));
+  allPurchaseData.splice(0, allPurchaseData.length, ...allPurchaseData.filter(d => !state.submittedIds.includes(d.id)));
+
+  state.sourceType = null;
+  state.range = 'all';
+  state.fromFactory = 'all'; state.toFactory = 'all';
+  state.purchaseFactory = 'all'; state.supplier = 'all';
+  state.submittedIds = [];
+
+  document.getElementById('radioTransfer').classList.remove('selected');
+  document.getElementById('radioPurchase').classList.remove('selected');
+  document.getElementById('rangeAll').classList.add('selected');
+  document.getElementById('rangeCustom').classList.remove('selected');
+  document.getElementById('filterTransfer').classList.remove('visible');
+  document.getElementById('filterPurchase').classList.remove('visible');
+  document.getElementById('fromFactory').value = 'all';
+  document.getElementById('toFactory').value = 'all';
+  document.getElementById('purchaseFactory').value = 'all';
+  document.getElementById('supplier').value = 'all';
+  document.getElementById('btnNext2').disabled = true;
+
+  const total = allTransferData.length + allPurchaseData.length;
+  const sub1 = document.getElementById('step1Subtitle');
+  document.getElementById('transferRadioCount').textContent = allTransferData.length + ' 条物料';
+  document.getElementById('purchaseRadioCount').textContent = allPurchaseData.length + ' 条物料';
+
+  if (total > 0) {
+    sub1.innerHTML = `当前购物车共 <strong>${total}</strong> 条物料：调拨类 ${allTransferData.length} 条 / 采购类 ${allPurchaseData.length} 条`;
+    goStep(2);
+  } else {
+    sub1.innerHTML = '当前购物车无待申请物料 🎉';
+    goStep(1);
+    showToast('所有物料已提交完成');
+  }
+  updatePreview();
+}
+
+function closeModal() { document.getElementById('confirmModal').classList.remove('visible'); }
+function confirmSubmit() { closeModal(); doSubmit(); }
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 2500);
+}
+
+// Init
+updateStepper(1);
+</script>
+
+</body>
+</html>
