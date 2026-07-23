@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>确认提交申请</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f4f6f9;
+    color: #1f2329;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .btn-ghost { background: #fff; border: 1px solid #d0d3d9; color: #4e5969; }
+  .btn-ghost:hover { background: #f4f6f9; }
+  .btn-primary { background: #2b6af2; color: #fff; }
+  .btn-primary:hover { background: #1f5ad6; }
+
+  /* 弹框 */
+  .dialog {
+    width: 420px;
+    max-width: calc(100vw - 40px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+
+  .dialog-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 22px 22px 10px;
+  }
+  .warn-icon {
+    flex: none;
+    width: 26px; height: 26px;
+    color: #faad14;
+  }
+  .dialog-title { font-size: 17px; font-weight: 600; line-height: 1.4; padding-top: 2px; }
+
+  .dialog-body {
+    padding: 2px 22px 18px 60px;
+    font-size: 15px;
+    color: #4e5969;
+    line-height: 1.8;
+  }
+
+  .dialog-note {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    background: #fff5f5;
+    border: 1px solid #ffe0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #8a9099;
+    line-height: 1.7;
+  }
+  .dialog-note b { color: #f56c6c; font-weight: 600; }
+
+  .dialog-body .dim {
+    color: #1f2329;
+    font-weight: 600;
+    background: #fff9e6;
+    border: 1px solid #ffe7a3;
+    border-radius: 4px;
+    padding: 2px 8px;
+  }
+  .dim-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dim-list div {
+    color: #4e5969;
+  }
+
+  .dialog-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 14px 22px;
+    background: #fafbfc;
+    border-top: 1px solid #eef0f3;
+  }
+  .btn-cancel { background: #fff; border: 1px solid #d0d3d9; color: #4e5969; }
+  .btn-cancel:hover { background: #f4f6f9; }
+  .btn-confirm { background: #2b6af2; color: #fff; }
+  .btn-confirm:hover { background: #1f5ad6; }
+
+  /* 结果页（与确认弹框保持一致的大小与格式） */
+  .result-page {
+    position: relative;
+    width: 420px;
+    max-width: calc(100vw - 40px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    padding: 48px 24px 40px;
+    text-align: center;
+    display: none;
+  }
+  .result-page.show { display: block; animation: fadeIn .25s ease; }
+
+  .result-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: #8a9099;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, color .15s ease;
+  }
+  .result-close:hover { background: #f4f6f9; color: #1f2329; }
+  .result-close svg { width: 18px; height: 18px; }
+
+  .success-icon {
+    width: 64px; height: 64px;
+    margin: 0 auto 18px;
+    color: #67c23a;
+  }
+  .success-title {
+    font-size: 18px;
+    color: #67c23a;
+    font-weight: 600;
+    margin-bottom: 28px;
+  }
+  .result-summary {
+    font-size: 15px;
+    color: #1f2329;
+    line-height: 1.8;
+    display: inline-block;
+    text-align: left;
+  }
+  .result-summary p { margin-bottom: 8px; }
+  .result-summary ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .result-summary li {
+    position: relative;
+    padding-left: 14px;
+    color: #4e5969;
+  }
+  .result-summary li::before {
+    content: '–';
+    position: absolute;
+    left: 0;
+    color: #8a9099;
+  }
+  .result-summary .count { color: #1f2329; font-weight: 600; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+  <!-- 确认弹框 -->
+  <div class="dialog" id="dialog" role="alertdialog" aria-modal="true">
+    <div class="dialog-head">
+      <svg class="warn-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0V7a1 1 0 0 1 1-1zm0 11.5a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z"/>
+      </svg>
+      <div class="dialog-title">确认提交申请</div>
+    </div>
+    <div class="dialog-body">
+      <div class="dialog-note">提交后，对应提交的数据将<b>锁定并生成申请单</b>，无法撤回或修改。</div>
+      所选物料未覆盖以下维度的全部物料，是否继续？
+      <div class="dim-list">
+        <div><span class="dim">工厂 C001</span> + <span class="dim">供应商 S001</span></div>
+        <div><span class="dim">出方工厂 C001</span> + <span class="dim">入方工厂 C002</span></div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn btn-cancel" id="cancelBtn">取消</button>
+      <button class="btn btn-confirm" id="confirmBtn">继续申请</button>
+    </div>
+  </div>
+
+  <!-- 提交结果页 -->
+  <div class="result-page" id="resultPage">
+    <button class="result-close" id="resultClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+      </svg>
+    </button>
+    <svg class="success-icon" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.25 14.5l-4-4 1.41-1.41 2.59 2.59 6.09-6.09L18.25 9l-7.5 7.5z"/>
+    </svg>
+    <div class="success-title">申请提交成功</div>
+    <div class="result-summary">
+      <p>已成功处理单据汇总：</p>
+      <ul>
+        <li>调拨类申请：<span class="count">5 条</span></li>
+        <li>采购类申请：<span class="count">6 条</span></li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+  const dialog = document.getElementById('dialog');
+  const resultPage = document.getElementById('resultPage');
+
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    // 实际场景：关闭弹框 / 返回上一页
+    dialog.style.display = 'none';
+  });
+  document.getElementById('confirmBtn').addEventListener('click', () => {
+    dialog.style.display = 'none';
+    resultPage.classList.add('show');
+  });
+  document.getElementById('resultClose').addEventListener('click', () => {
+    resultPage.classList.remove('show');
+    dialog.style.display = 'block';
+  });
+</script>
+</body>
+</html>
