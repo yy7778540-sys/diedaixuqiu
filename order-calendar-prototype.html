@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>订货日历 - 增删交互设计原型</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",PingFang SC,Microsoft YaHei,sans-serif}
+  body{padding:16px 24px;background:#f5f6f8;color:#1a1a1a;min-width:1280px}
+
+  /* 整体布局：左侧筛选 280 + 主内容 1fr + 右侧说明 340 */
+  .wrap{display:grid;grid-template-columns:280px 1fr 340px;gap:16px;align-items:start;max-width:1600px;margin:0 auto}
+
+  /* ===== 左侧筛选栏 ===== */
+  .left-sidebar{background:#fff;border:0.5px solid #e6e6e6;border-radius:12px;padding:16px;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto}
+  .left-sidebar h1{font-size:18px;font-weight:500;margin-bottom:20px;color:#1a1a1a}
+  .filter-group{margin-bottom:16px}
+  .filter-group label{display:block;font-size:13px;color:#333;font-weight:500;margin-bottom:6px}
+  .filter-group input,.filter-group select{width:100%;padding:8px 10px;border:0.5px solid #d0d0d0;border-radius:6px;font-size:12px;color:#555;outline:none}
+  .filter-group input:focus,.filter-group select:focus{border-color:#1f6dd9}
+  .filter-group input::placeholder{color:#bbb}
+  .mini-cal{border:0.5px solid #e6e6e6;border-radius:8px;padding:10px;background:#fafafa}
+  .mini-cal-h{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500;color:#333;margin-bottom:8px}
+  .mini-cal-h button{background:none;border:none;font-size:14px;color:#888;cursor:pointer;padding:0 4px}
+  .mini-cal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .mini-cal-grid span{text-align:center;padding:8px 0;border-radius:6px;font-size:12px;color:#555;cursor:pointer}
+  .mini-cal-grid span:hover{background:#eef5ff;color:#1f6dd9}
+  .mini-cal-grid span.current{background:#1f6dd9;color:#fff}
+  .check-btn{width:100%;padding:10px 0;border:none;border-radius:6px;background:#1f6dd9;color:#fff;font-size:13px;cursor:pointer;margin-top:8px}
+  .check-btn:hover{background:#1a5fc4}
+
+  /* ===== 主内容区 ===== */
+  .main{background:#fff;border:0.5px solid #e6e6e6;border-radius:12px;padding:16px;position:relative;min-width:0}
+
+  /* 工具栏 */
+  .toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid #eaeaeb;margin:-16px -16px 12px;gap:8px;flex-wrap:wrap}
+  .toolbar .left-btns,.toolbar .right-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .btn{padding:6px 14px;border-radius:6px;border:0.5px solid #d0d0d0;background:#fff;color:#555;font-size:12px;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#f3f3f3}
+  .btn-primary{border-color:#1f6dd9;background:#1f6dd9;color:#fff}
+  .btn-primary:hover{background:#1a5fc4}
+  .btn-danger{border-color:#ff4d4f;background:#ff4d4f;color:#fff}
+  .btn-danger:hover{background:#e24b4a}
+  .btn-warn{border-color:#ff8c53;background:#ff8c53;color:#fff}
+  .btn-warn:hover{background:#e67a45}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* 重新运行计划按钮保持原有加载态 */
+  .run-plan-btn{position:relative;overflow:hidden}
+  .run-plan-btn .spin-icon{display:none;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-right:4px}
+  .run-plan-btn.loading .spin-icon{display:inline-block}
+  .run-plan-btn.loading .btn-label{display:none}
+  .run-plan-btn.done{border-color:#389e0d;background:#389e0d}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#eaeaeb;border:0.5px solid #eaeaeb;border-radius:8px;overflow:hidden}
+  .cal-h{background:#fafafa;padding:8px 6px;text-align:center;font-size:12px;color:#666;font-weight:500}
+  .cell{background:#fff;min-height:100px;padding:6px 6px 8px;position:relative;display:flex;flex-direction:column;gap:3px}
+  .cell.muted{background:#fafafa;color:#bbb}
+  .cell.past{background:#fafafa}
+  .cell.past .entry{opacity:0.6}
+  .cell.today{background:#eef5ff}
+  .cell .dh{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#888}
+  .cell .dh .num{font-weight:500;color:#333}
+  .cell.muted .dh .num{color:#bbb}
+  .cell.past .dh .num{color:#aaa}
+  .cell.today .dh .num{color:#1f6dd9}
+  .add-btn{width:18px;height:18px;border-radius:50%;border:0.5px solid #c8c8c8;background:#fff;color:#888;font-size:14px;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0}
+  .add-btn:hover{background:#1f6dd9;color:#fff;border-color:#1f6dd9}
+  .cell:hover .add-btn{display:flex}
+  .entry{display:flex;align-items:center;gap:4px;font-size:11px;background:#f7f8fa;border-radius:4px;padding:3px 5px;cursor:pointer;flex-wrap:wrap}
+  .entry:hover{background:#eef2f7}
+  .entry .tz{font-size:10px;padding:1px 4px;border-radius:3px;color:#fff;font-weight:500;flex-shrink:0;line-height:1.4;white-space:nowrap}
+  .entry .txt{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;color:#444}
+  .entry .x{width:14px;height:14px;border-radius:50%;border:none;background:transparent;color:#999;font-size:11px;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0;margin-left:auto}
+  .entry:hover .x{display:flex}
+  .entry .x:hover{background:#e24b4a;color:#fff}
+  .cell .count{margin-top:auto;font-size:11px;color:#888;text-align:right}
+  .legend{font-size:11px;color:#999;display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:4px}
+  .legend b{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+  /* Toast */
+  .toast{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);background:#2c2c2c;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:50}
+  .toast a{color:#7ec0ff;cursor:pointer}
+  .toast-success{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:#f6ffed;border:0.5px solid #b7eb8f;color:#389e0d;padding:6px 12px;border-radius:6px;font-size:12px;display:none;white-space:nowrap;z-index:50}
+  .toast-success.show{display:block}
+
+  /* ===== 右侧说明区 ===== */
+  .right{display:flex;flex-direction:column;gap:12px;position:sticky;top:16px}
+  .right > div{background:#fff;border:0.5px solid #e6e6e6;border-radius:12px;padding:14px}
+  .right h3{font-size:14px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .right h3 .tag{font-size:11px;background:#eef5ff;color:#1f6dd9;padding:2px 6px;border-radius:4px;font-weight:400}
+  .hint{font-size:12px;color:#666;line-height:1.7;background:#fafbfc;border-radius:8px;padding:10px 12px;border:0.5px dashed #e0e0e0}
+  .hint b{color:#1a1a1a}
+  .data-model{background:#f0f8f5;border:0.5px solid #c8e6d8;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12px;line-height:1.7;color:#3a5a48}
+  .data-model code{background:#d8edde;padding:1px 4px;border-radius:3px;font-size:11px;color:#2d6a4f}
+
+  /* 删除日志 */
+  .del-log{margin-top:0}
+  .del-log h4{font-size:12px;font-weight:500;color:#666;margin-bottom:6px}
+  .del-log .log-table{width:100%;border-collapse:collapse;font-size:11px}
+  .del-log .log-table th{background:#fafafa;padding:5px 6px;text-align:left;color:#888;font-weight:500;border-bottom:0.5px solid #eaeaeb}
+  .del-log .log-table td{padding:5px 6px;border-bottom:0.5px solid #f0f0f0;color:#555}
+  .del-log .log-table .dim{font-size:10px;color:#aaa}
+  .del-log .log-table .undone-row td{text-decoration:line-through;color:#ccc}
+  .del-log .log-empty{font-size:11px;color:#bbb;text-align:center;padding:12px 0}
+
+  /* 弹窗 */
+  .del-overlay,.add-overlay,.run-plan-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;display:none;align-items:center;justify-content:center}
+  .del-overlay.show,.add-overlay.show,.run-plan-overlay.show{display:flex}
+  .del-dialog{background:#fff;border-radius:12px;padding:24px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+  .del-dialog h3{font-size:15px;font-weight:600;margin-bottom:4px;color:#1a1a1a;display:flex;align-items:center;gap:6px}
+  .del-dialog h3 .warn-icon{width:20px;height:20px;border-radius:50%;background:#faad14;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .del-dialog .del-target{font-size:13px;color:#666;margin-bottom:12px;padding:8px 10px;background:#f7f8fa;border-radius:6px;display:flex;align-items:center;gap:6px}
+  .del-dialog .del-warn{font-size:13px;color:#8c6d00;line-height:1.7;padding:10px 12px;background:#fffbe6;border:0.5px solid #ffe58f;border-radius:8px;margin-bottom:16px}
+  .del-dialog .del-warn.today{background:#fff2f0;border-color:#ffccc7;color:#a8071a}
+  .del-dialog .del-btns{display:flex;gap:10px;justify-content:flex-end}
+  .del-dialog .del-btns button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+  .del-dialog .del-btns .cancel{background:#fff;border:0.5px solid #d0d0d0;color:#555}
+  .del-dialog .del-btns .danger{background:#ff4d4f;border:1px solid #ff4d4f;color:#fff}
+  .del-dialog .del-btns .cancel:hover{background:#f5f5f5}
+  .del-dialog .del-btns .danger:hover{background:#e24b4a}
+  .add-dialog{background:#fff;border-radius:12px;padding:24px;width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+  .add-dialog h3{font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a1a;display:flex;justify-content:space-between;align-items:center}
+  .add-dialog h3 .x2{color:#aaa;cursor:pointer;font-size:16px}
+  .add-dialog h3 .x2:hover{color:#555}
+  .add-dialog .field{margin-bottom:12px}
+  .add-dialog .field label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+  .add-dialog .field input,.add-dialog .field select{width:100%;padding:7px 10px;border:0.5px solid #d0d0d0;border-radius:6px;font-size:13px;background:#fff}
+  .add-dialog .field input:disabled{background:#f5f5f5;color:#999;cursor:not-allowed}
+  .add-dialog .field input:focus,.add-dialog .field select:focus{outline:none;border-color:#1f6dd9}
+  .add-dialog .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .add-dialog .add-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .add-dialog .add-btns button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+  .add-dialog .add-btns .cancel{background:#fff;border:0.5px solid #d0d0d0;color:#555}
+  .add-dialog .add-btns .primary-btn{background:#1f6dd9;border:1px solid #1f6dd9;color:#fff}
+  .add-dialog .add-btns .cancel:hover{background:#f5f5f5}
+  .add-dialog .add-btns .primary-btn:hover{background:#1a5fc4}
+  .add-dialog .add-btns .primary-btn:disabled{opacity:.5;cursor:not-allowed}
+  .add-dialog .today-notice{background:#fff7e6;border:0.5px solid #ffd591;border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#ad6800;line-height:1.6}
+  .add-dialog .today-notice b{color:#873800}
+  .add-dialog .modal-error{display:none;background:#fff2f0;border:0.5px solid #ffccc7;border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#cf1322;align-items:flex-start;gap:6px}
+  .add-dialog .modal-error.show{display:flex}
+  .add-dialog .modal-error .icon{flex-shrink:0;width:16px;height:16px;border-radius:50%;background:#ff4d4f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;line-height:1}
+  .add-dialog .modal-error .msg{line-height:1.5}
+  .add-dialog .modal-error b{color:#a8071a}
+  .add-dialog .field.has-error input,.add-dialog .field.has-error select{border-color:#ff4d4f;background:#fff2f0}
+  .run-plan-dialog{background:#fff;border-radius:12px;padding:24px;width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+  .run-plan-dialog h3{font-size:15px;font-weight:600;margin-bottom:4px;color:#1a1a1a;display:flex;align-items:center;gap:6px}
+  .run-plan-dialog h3 .warn-icon{width:20px;height:20px;border-radius:50%;background:#faad14;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .run-plan-dialog .run-warn{font-size:13px;color:#8c6d00;line-height:1.7;padding:10px 12px;background:#fffbe6;border:0.5px solid #ffe58f;border-radius:8px;margin:12px 0 16px}
+  .run-plan-dialog .field{margin-bottom:12px}
+  .run-plan-dialog .field label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+  .run-plan-dialog .field select{width:100%;padding:7px 10px;border:0.5px solid #d0d0d0;border-radius:6px;font-size:13px;background:#fff}
+  .run-plan-dialog .field select:focus{outline:none;border-color:#1f6dd9}
+  .run-plan-dialog .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .run-plan-dialog .run-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .run-plan-dialog .run-btns button{padding:7px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+  .run-plan-dialog .run-btns .cancel{background:#fff;border:0.5px solid #d0d0d0;color:#555}
+  .run-plan-dialog .run-btns .primary-btn{background:#1f6dd9;border:1px solid #1f6dd9;color:#fff}
+  .run-plan-dialog .run-btns .cancel:hover{background:#f5f5f5}
+  .run-plan-dialog .run-btns .primary-btn:hover{background:#1a5fc4}
+
+  /* 删除日志弹窗 */
+  .log-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;display:none;align-items:center;justify-content:center}
+  .log-modal-overlay.show{display:flex}
+  .log-modal-dialog{background:#fff;border-radius:12px;padding:24px;width:640px;max-height:70vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+  .log-modal-dialog h3{font-size:15px;font-weight:600;margin-bottom:16px;color:#1a1a1a;display:flex;justify-content:space-between;align-items:center}
+  .log-modal-dialog h3 .x2{color:#aaa;cursor:pointer;font-size:16px}
+  .log-modal-dialog h3 .x2:hover{color:#555}
+  .log-modal-table{width:100%;border-collapse:collapse;font-size:12px}
+  .log-modal-table th{background:#fafafa;padding:8px 10px;text-align:left;color:#888;font-weight:500;border-bottom:0.5px solid #eaeaeb;position:sticky;top:0}
+  .log-modal-table td{padding:8px 10px;border-bottom:0.5px solid #f0f0f0;color:#555}
+  .log-modal-table .dim{font-size:10px;color:#aaa}
+  .log-modal-table .undone-row td{text-decoration:line-through;color:#ccc}
+  .log-modal-empty{font-size:12px;color:#bbb;text-align:center;padding:20px 0}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- 左侧筛选栏 -->
+  <div class="left-sidebar">
+    <h1>工厂订货日历预览</h1>
+
+    <div class="filter-group">
+      <label>入方工厂</label>
+      <input type="text" placeholder="请输入工厂名称/编码">
+    </div>
+
+    <div class="filter-group">
+      <label>出方工厂</label>
+      <input type="text" placeholder="请输入工厂名称/编码">
+    </div>
+
+    <div class="filter-group">
+      <label>预览温层</label>
+      <select>
+        <option value="">请选择温层</option>
+        <option value="冷冻">冷冻</option>
+        <option value="常温">常温</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>预览日期</label>
+      <div class="mini-cal">
+        <div class="mini-cal-h">
+          <button>&lsaquo;</button>
+          <span>2026年</span>
+          <button>&rsaquo;</button>
+        </div>
+        <div class="mini-cal-grid">
+          <span>1月</span><span>2月</span><span>3月</span>
+          <span>4月</span><span>5月</span><span>6月</span>
+          <span class="current">7月</span><span>8月</span><span>9月</span>
+          <span>10月</span><span>11月</span><span>12月</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="check-btn">查看</button>
+  </div>
+
+  <!-- 主内容区 -->
+  <div class="main">
+    <div class="toolbar">
+      <div class="left-btns">
+        <button class="btn">配置</button>
+        <button class="btn btn-primary">+ 批量导入</button>
+        <button class="btn btn-danger">删除</button>
+        <button class="btn btn-warn">立即发布</button>
+      </div>
+      <div class="right-btns">
+        <button class="btn btn-primary run-plan-btn" id="runPlanBtn" onclick="openRunPlan()">
+          <span class="spin-icon"></span>
+          <span class="btn-label">重新运行计划</span>
+        </button>
+        <button class="btn btn-primary">查看日志</button>
+        <button class="btn" onclick="openLogModal()">删除日志</button>
+        <button class="btn">展开全部</button>
+      </div>
+    </div>
+
+    <div class="cal" id="cal">
+      <div class="cal-h">周日</div><div class="cal-h">周一</div><div class="cal-h">周二</div><div class="cal-h">周三</div><div class="cal-h">周四</div><div class="cal-h">周五</div><div class="cal-h">周六</div>
+    </div>
+
+    <div class="legend">
+      <span><b style="background:#389e0d"></b> 冷冻</span>
+      <span><b style="background:#d4a017"></b> 常温</span>
+    </div>
+
+    <div class="toast" id="toast" style="display:none">已删除 <b id="toastCount">1</b> 条订货日历，<a onclick="undo()">撤销</a></div>
+    <div class="toast-success" id="toastSuccess"></div>
+  </div>
+
+  <!-- 右侧说明区 -->
+  <div class="right">
+    <div>
+      <h3>数据模型 <span class="tag">关键</span></h3>
+      <div class="data-model">
+        每条日历条目 =<br>
+        <code>日期</code> + <code>温层</code> + <code>出方工厂</code> + <code>入方工厂</code><br><br>
+        例：7 月 16 日，<b>冷冻</b>温层，<br>山东 8847 &rarr; 西安 C005
+      </div>
+    </div>
+
+    <div>
+      <h3>新增订货日历 <span class="tag">弹窗</span></h3>
+      <div class="hint">
+        点击日期右上角 <b>+</b> 弹出窗口：<br>
+        · 选择 <b>温层</b>（冷冻 / 常温）<br>
+        · 选择 <b>出方工厂</b> 和 <b>入方工厂</b><br>
+        · 日期固定为点击定位的天，不可更改<br>
+        · 提交时校验重复，保存后关闭弹窗
+      </div>
+    </div>
+
+    <div>
+      <h3>操作说明 <span class="tag">交互</span></h3>
+      <div class="hint">
+        · 悬停日期 &rarr; 右上角出现 <b>+ 按钮</b>，点击新增<br>
+        · 悬停日历条目 &rarr; 出现 <b>× 按钮</b>，点击弹出操作提醒<br>
+        · 过去日期只读，不显示操作入口<br>
+        · <b>新增</b>：日期固定为点击定位的天，同温层 + 同工厂对不可重复<br>
+        · <b>新增截止</b>：当天超过调拨转单时间前1小时不可新增，此时无新增按钮；未来天均可操作新增<br>
+        · <b>当天不可删除</b>：当天订货日历不允许删除，无删除按钮；未来天仅授权角色可删<br>
+        · <b>授权删除</b>：系统固定 <b>赵计划、钱调度、孙管理</b> 可执行删除操作<br>
+        · <b>运行计划</b>：增删后点击「重新运行计划」手动触发，超过最晚调拨转单时间按钮置灰<br>
+        · <b>授权运行</b>：仅授权计划员（赵计划、钱调度、孙管理）可执行重新运行计划操作<br>
+        · <b>自动去重</b>：原有配置扩充未来 15 天的订货点时，如果遇到当前维度数据在某一天已经存在，直接去重展示一条即可<br>
+        · <b>软删除机制</b>：删除未来天的条目后记录标记，系统每日自动扩充时<b>不再恢复</b>已删除条目，避免删了又加
+      </div>
+    </div>
+
+    <div>
+      <h3>删除日志 <span class="tag">记录</span></h3>
+      <div class="del-log">
+        <table class="log-table">
+          <thead><tr><th style="width:80px">时间</th><th style="width:56px">操作人</th><th>详情</th></tr></thead>
+          <tbody id="logBody">
+            <tr><td colspan="3" class="log-empty">暂无删除记录</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增弹窗 -->
+<div class="add-overlay" id="addOverlay">
+  <div class="add-dialog">
+    <h3>新增订货日历 <span class="x2" onclick="closeAddModal()">×</span></h3>
+    <div class="modal-error" id="modalError"></div>
+    <div class="today-notice">
+      当前操作<b>仅新增订货日历</b>，新增后如需重新生成今天的需求计划和调拨采购计划，请点击「<b>重新运行计划</b>」按钮操作。请确认是否执行上述操作？
+    </div>
+    <div class="field"><label>日期</label><input id="modalDate" value="2026-07-16" disabled /></div>
+    <div class="field">
+      <label>温层</label>
+      <select id="modalTz"><option value="冷冻">冷冻</option><option value="常温">常温</option></select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>出方工厂</label><select id="modalOut"><option value="山东8847">山东 8847</option><option value="天津8849">天津 8849</option><option value="临沭8838">临沭 8838</option></select></div>
+      <div class="field"><label>入方工厂</label><select id="modalIn"><option value="西安C005">西安 C005</option><option value="西安C012">西安 C012</option><option value="济南D003">济南 D003</option></select></div>
+    </div>
+    <div class="add-btns">
+      <button class="cancel" onclick="closeAddModal()">取消</button>
+      <button class="primary-btn" onclick="doAdd()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除弹窗 -->
+<div class="del-overlay" id="delOverlay">
+  <div class="del-dialog">
+    <h3><span class="warn-icon">!</span> 操作提醒</h3>
+    <div class="del-target" id="delTarget"></div>
+    <div class="del-warn" id="delWarn"></div>
+    <div class="del-btns">
+      <button class="cancel" onclick="cancelDel()">取消</button>
+      <button class="danger" onclick="confirmDel()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重新运行计划弹窗 -->
+<div class="run-plan-overlay" id="runPlanOverlay">
+  <div class="run-plan-dialog">
+    <h3><span class="warn-icon">!</span> 重新运行计划</h3>
+    <div class="run-warn">
+      点击"重新运行计划"后，请选择需更新的<b>入方工厂</b>。系统将基于所选工厂，同步更新其所有上下游关联数据。执行后，<b>需求计划与调拨采购计划</b>将按最新订货日历重新生成。确认继续？
+    </div>
+    <div class="field">
+      <label>入方工厂</label>
+      <select id="runIn"><option value="西安C005">西安 C005</option><option value="西安C012">西安 C012</option><option value="济南D003">济南 D003</option></select>
+    </div>
+    <div class="run-btns">
+      <button class="cancel" onclick="closeRunPlanModal()">取消</button>
+      <button class="primary-btn" onclick="confirmRunPlan()">确认执行</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除日志弹窗 -->
+<div class="log-modal-overlay" id="logModalOverlay">
+  <div class="log-modal-dialog">
+    <h3>删除日志 <span class="x2" onclick="closeLogModal()">×</span></h3>
+    <table class="log-modal-table">
+      <thead><tr><th style="width:100px">时间</th><th style="width:72px">操作人</th><th>详情</th></tr></thead>
+      <tbody id="logModalBody">
+        <tr><td colspan="3" class="log-modal-empty">暂无删除记录</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const tzColors = { '冷冻':'#389e0d', '常温':'#d4a017' };
+  const tzNames = ['冷冻','常温'];
+  const entries = {
+    4:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}],
+    5:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    6:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}],
+    7:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    8:[{tz:'常温',o:'临沭8838',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    9:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    10:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}],
+    11:[{tz:'常温',o:'临沭8838',i:'西安C005'},{tz:'冷冻',o:'山东8847',i:'西安C005'}],
+    12:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}],
+    13:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    14:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    15:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    16:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}],
+    17:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'山东8847',i:'西安C005'}],
+    18:[{tz:'冷冻',o:'山东8847',i:'西安C005'},{tz:'常温',o:'天津8849',i:'山东8847'}]
+  };
+  const counts = {4:2,5:37,6:34,7:37,8:42,9:33,10:44,11:37,12:38,13:41,14:42,15:32,16:40,17:40,18:35};
+  const today = 16;
+
+  // ===== 权限控制 =====
+  // 删除按钮仅授权计划员可操作（系统固定配置）
+  const authorizedUsers = ['赵计划', '钱调度', '孙管理']; // 系统固定授权列表
+  const currentUser = '赵计划'; // 当前登录用户
+  const hasDeletePermission = authorizedUsers.includes(currentUser);
+  const hasRunPlanPermission = authorizedUsers.includes(currentUser);
+
+  // ===== 删除日志 =====
+  const deleteLogs = [];
+  let logSeq = 0;
+  function genLogId(){ logSeq++; return `DEL-20260716-${String(logSeq).padStart(3,'0')}`; }
+
+  function addDeleteLog(item, day){
+    const log = {
+      log_id: genLogId(),
+      action: 'DELETE',
+      operator: currentUser,
+      operate_time: new Date().toISOString().replace('T',' ').substring(0,19),
+      calendar_date: `2026-07-${String(day).padStart(2,'0')}`,
+      temp_zone: item.tz,
+      source_factory: item.o,
+      target_factory: item.i,
+      result: 'SUCCESS',
+      undone: false
+    };
+    deleteLogs.unshift(log);
+    renderLogs();
+  }
+
+  function renderLogs(){
+    const container = document.getElementById('logBody');
+    if(deleteLogs.length === 0){
+      container.innerHTML = '<tr><td colspan="3" class="log-empty">暂无删除记录</td></tr>';
+      return;
+    }
+    container.innerHTML = deleteLogs.map(l => {
+      const rowCls = l.undone ? ' class="undone-row"' : '';
+      const time = l.operate_time.substring(0,10);
+      return `<tr${rowCls}>
+        <td>${time}</td>
+        <td>${l.operator}</td>
+        <td>${l.calendar_date.substring(5)} <span class="dim">${l.temp_zone} ${l.source_factory}→${l.target_factory}</span></td>
+      </tr>`;
+    }).join('');
+    // 同步更新弹窗内表格（如果弹窗打开着）
+    renderLogModalBody();
+  }
+
+  function renderLogModalBody(){
+    const mb = document.getElementById('logModalBody');
+    if(!mb) return;
+    if(deleteLogs.length === 0){
+      mb.innerHTML = '<tr><td colspan="3" class="log-modal-empty">暂无删除记录</td></tr>';
+      return;
+    }
+    mb.innerHTML = deleteLogs.map(l => {
+      const rowCls = l.undone ? ' class="undone-row"' : '';
+      return `<tr${rowCls}>
+        <td>${l.operate_time.substring(0,10)}</td>
+        <td>${l.operator}</td>
+        <td>${l.calendar_date.substring(5)} <span class="dim">${l.temp_zone} ${l.source_factory}→${l.target_factory}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.openLogModal = function(){
+    renderLogModalBody();
+    document.getElementById('logModalOverlay').classList.add('show');
+  };
+  window.closeLogModal = function(){
+    document.getElementById('logModalOverlay').classList.remove('show');
+  };
+  // ===== 软删除标记（Tombstone） =====
+  // 解决「计划员手动删除 → 系统自动扩充又加回来」的问题
+  // 原理：删除未来天条目时记录 (日期,温层,出方,入方) 到 tombstones
+  //       autoExtend() 扩充时检查 tombstones，命中则跳过
+  const tombstones = new Set(); // 存储 "day-tz-out-inn" 格式的 key
+  function makeKey(day, tz, out, inn){ return `${day}-${tz}-${out}-${inn}`; }
+
+  // ===== 自动延伸去重逻辑（系统每日自动往后延伸15天时执行） =====
+  // 去重规则：1) 已有数据不重复  2) 已被计划员手动删除的不恢复（tombstone 检查）
+  function autoExtend(configList, targetDay){
+    const existing = entries[targetDay] || [];
+    configList.forEach(cfg => {
+      const key = makeKey(targetDay, cfg.tz, cfg.o, cfg.i);
+      const dup = existing.some(e => e.tz === cfg.tz && e.o === cfg.o && e.i === cfg.i);
+      const tombstoned = tombstones.has(key);
+      if(!dup && !tombstoned){
+        if(!entries[targetDay]) entries[targetDay] = [];
+        entries[targetDay].push({tz: cfg.tz, o: cfg.o, i: cfg.i});
+      }
+    });
+  }
+
+  // ===== 时间控制 =====
+  // 调拨自动转单时间（可配置，此处设为 23:00）
+  const transferHour = 23;
+  const transferMinute = 0;
+  const now = new Date();
+  const curMinutes = now.getHours() * 60 + now.getMinutes();
+  const transferMinutes = transferHour * 60 + transferMinute;
+  const addCutoffMinutes = transferMinutes - 60;
+  const pastAddCutoff = curMinutes >= addCutoffMinutes;
+  const pastTransferTime = curMinutes >= transferMinutes;
+  (function initRunPlanBtn(){
+    const btn = document.getElementById('runPlanBtn');
+    if(!hasRunPlanPermission){
+      btn.disabled = true;
+      btn.title = '仅授权计划员可操作（赵计划、钱调度、孙管理）';
+    } else if(pastTransferTime){
+      btn.disabled = true;
+      btn.title = '已超过最晚调拨转单时间，无法重新运行计划';
+    }
+  })();
+
+  const cal = document.getElementById('cal');
+  for(let d=1; d<=18; d++){
+    const cell = document.createElement('div');
+    let cls = 'cell';
+    if(d < 4) cls += ' muted';
+    else if(d < today) cls += ' past';
+    if(d === today) cls += ' today';
+    cell.className = cls;
+    let html = `<div class="dh"><span class="num">${d}</span>`;
+    const canAddToday = d === today ? !pastAddCutoff : true;
+    if(d >= today && canAddToday) html += `<button class="add-btn" title="新增 ${d} 日的订货日历" onclick="addEntry(${d})">+</button>`;
+    html += `</div>`;
+    if(entries[d]){
+      entries[d].forEach((e,i)=>{
+        const delBtn = (d > today && hasDeletePermission) ? '<button class="x" title="删除此日历条目">×</button>' : '';
+        html += `<div class="entry" data-day="${d}" data-idx="${i}">
+          <span class="tz" style="background:${tzColors[e.tz]}">${e.tz}</span>
+          <span class="txt">${e.o}&rarr;${e.i}</span>
+          ${delBtn}
+        </div>`;
+      });
+      html += `<div class="count">共 ${counts[d]} 条</div>`;
+    }
+    cell.innerHTML = html;
+    cal.appendChild(cell);
+  }
+
+  let pendingDelEntry = null;
+
+  document.addEventListener('click', e=>{
+    if(e.target.classList.contains('x')){
+      e.stopPropagation();
+      const entry = e.target.closest('.entry');
+      const day = parseInt(entry.dataset.day);
+      if(day <= today) return;
+      const idx = parseInt(entry.dataset.idx);
+      const item = entries[day][idx];
+
+      document.getElementById('delTarget').innerHTML = `<span class="tz" style="background:${tzColors[item.tz]}">${item.tz}</span> ${item.o} → ${item.i}（${day} 日）`;
+
+      const warnEl = document.getElementById('delWarn');
+      if(day === today){
+        warnEl.className = 'del-warn today';
+        warnEl.innerHTML = '当前操作<b>仅删除订货日历</b>，删除后如需重新生成今天的需求计划和调拨采购计划，请点击「<b>重新运行计划</b>」按钮操作。请确认是否执行上述操作？';
+      } else {
+        warnEl.className = 'del-warn';
+        warnEl.innerHTML = '当前操作<b>仅删除订货日历</b>，删除后系统每日自动扩充时将<b>不再恢复</b>此条目。如需重新生成对应天的需求计划预测和调拨采购计划，请点击「<b>重新运行计划</b>」按钮操作。请确认是否执行上述操作？';
+      }
+
+      pendingDelEntry = entry;
+      document.getElementById('delOverlay').classList.add('show');
+    }
+  });
+
+  let lastDeleted = null;
+
+  window.cancelDel = function(){
+    document.getElementById('delOverlay').classList.remove('show');
+    pendingDelEntry = null;
+  };
+  window.confirmDel = function(){
+    if(!pendingDelEntry) return;
+    const day = parseInt(pendingDelEntry.dataset.day);
+    const idx = parseInt(pendingDelEntry.dataset.idx);
+    const deletedItem = entries[day][idx];
+    lastDeleted = { day, idx, item: deletedItem };
+    tombstones.add(makeKey(day, deletedItem.tz, deletedItem.o, deletedItem.i));
+    addDeleteLog(deletedItem, day);
+    entries[day].splice(idx, 1);
+    if(entries[day].length === 0) delete entries[day];
+    document.getElementById('delOverlay').classList.remove('show');
+    pendingDelEntry = null;
+    renderCal();
+    showToast(1);
+  };
+  window.addEntry = function(day){
+    if(day === today && pastAddCutoff){
+      const ts = document.getElementById('toastSuccess');
+      ts.textContent = '已超过调拨转单时间前1小时，当天订货日历不可新增';
+      ts.classList.add('show');
+      clearTimeout(window._tsT);
+      window._tsT = setTimeout(()=>ts.classList.remove('show'), 2500);
+      return;
+    }
+    const dateStr = `2026-07-${String(day).padStart(2,'0')}`;
+    document.getElementById('modalDate').value = dateStr;
+    document.getElementById('modalError').classList.remove('show');
+    document.getElementById('modalTz').parentElement.classList.remove('has-error');
+    document.getElementById('modalOut').parentElement.classList.remove('has-error');
+    document.getElementById('modalIn').parentElement.classList.remove('has-error');
+    document.getElementById('addOverlay').classList.add('show');
+  };
+
+  window.closeAddModal = function(){
+    document.getElementById('addOverlay').classList.remove('show');
+  };
+
+  function checkDuplicate(date, tz, out, inn){
+    const day = parseInt(date.split('-')[2]);
+    const list = entries[day] || [];
+    return list.some(e => e.tz === tz && e.o === out && e.i === inn);
+  }
+
+  window.doAdd = function(){
+    const date = document.getElementById('modalDate').value;
+    const tz = document.getElementById('modalTz').value;
+    const out = document.getElementById('modalOut').value;
+    const inn = document.getElementById('modalIn').value;
+    const errEl = document.getElementById('modalError');
+    const day = parseInt(date.split('-')[2]);
+
+    if(checkDuplicate(date, tz, out, inn)){
+      errEl.innerHTML = `<span class="icon">!</span><span class="msg">该日期已存在相同的订货日历：<b>${tz}</b> · <b>${out} → ${inn}</b><br>请修改温层或工厂后重试</span>`;
+      errEl.classList.add('show');
+      document.getElementById('modalTz').parentElement.classList.add('has-error');
+      document.getElementById('modalOut').parentElement.classList.add('has-error');
+      document.getElementById('modalIn').parentElement.classList.add('has-error');
+      return;
+    }
+
+    errEl.classList.remove('show');
+    document.getElementById('modalTz').parentElement.classList.remove('has-error');
+    document.getElementById('modalOut').parentElement.classList.remove('has-error');
+    document.getElementById('modalIn').parentElement.classList.remove('has-error');
+
+    if(!entries[day]) entries[day] = [];
+    entries[day].push({tz, o: out, i: inn});
+    tombstones.delete(makeKey(day, tz, out, inn));
+    renderCal();
+
+    const ts = document.getElementById('toastSuccess');
+    ts.textContent = '✓ 已添加 '+tz+' · '+out+' → '+inn;
+    ts.classList.add('show');
+    clearTimeout(window._tsT);
+    window._tsT = setTimeout(()=>ts.classList.remove('show'), 3000);
+
+    closeAddModal();
+  };
+
+  function renderCal(){
+    const cal = document.getElementById('cal');
+    const cells = cal.querySelectorAll('.cell');
+    cells.forEach(cell=>{
+      const day = parseInt(cell.querySelector('.num').textContent);
+      cell.querySelectorAll('.entry,.count,.confirm-bar').forEach(e=>e.remove());
+      if(entries[day]){
+        entries[day].forEach((e,i)=>{
+          const entry = document.createElement('div');
+          entry.className = 'entry';
+          entry.dataset.day = day;
+          entry.dataset.idx = i;
+          const delBtn = (day > today && hasDeletePermission) ? '<button class="x" title="删除此日历条目">×</button>' : '';
+          entry.innerHTML = `<span class="tz" style="background:${tzColors[e.tz]}">${e.tz}</span>
+            <span class="txt">${e.o}→${e.i}</span>
+            ${delBtn}`;
+          cell.appendChild(entry);
+        });
+      }
+    });
+  }
+  function showToast(n){
+    const t = document.getElementById('toast');
+    document.getElementById('toastCount').textContent = n;
+    t.style.display = 'flex';
+    clearTimeout(window._toastT);
+    window._toastT = setTimeout(()=>{ t.style.display='none'; lastDeleted=null; }, 5000);
+  }
+  window.openRunPlan = function(){
+    if(!hasRunPlanPermission){
+      const ts = document.getElementById('toastSuccess');
+      ts.textContent = '仅授权计划员（赵计划、钱调度、孙管理）可操作';
+      ts.classList.add('show');
+      clearTimeout(window._tsT);
+      window._tsT = setTimeout(()=>ts.classList.remove('show'), 2500);
+      return;
+    }
+    if(pastTransferTime) return;
+    document.getElementById('runPlanOverlay').classList.add('show');
+  };
+  window.closeRunPlanModal = function(){
+    document.getElementById('runPlanOverlay').classList.remove('show');
+  };
+  window.confirmRunPlan = function(){
+    const inn = document.getElementById('runIn').value;
+
+    document.getElementById('runPlanOverlay').classList.remove('show');
+
+    const btn = document.getElementById('runPlanBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    setTimeout(()=>{
+      btn.classList.remove('loading');
+      btn.classList.add('done');
+      btn.querySelector('.btn-label').textContent = '✓ 计划已运行';
+      btn.disabled = pastTransferTime || !hasRunPlanPermission;
+
+      const ts = document.getElementById('toastSuccess');
+      ts.textContent = '✓ '+inn+' 的需求计划与调拨采购计划已按最新订货日历重新生成';
+      ts.classList.add('show');
+      clearTimeout(window._tsT);
+      window._tsT = setTimeout(()=>ts.classList.remove('show'), 3000);
+
+      setTimeout(()=>{
+        btn.classList.remove('done');
+        btn.querySelector('.btn-label').textContent = '重新运行计划';
+      }, 3000);
+    }, 2000);
+  };
+
+  window.undo = function(){
+    if(!lastDeleted) return;
+    if(!entries[lastDeleted.day]) entries[lastDeleted.day] = [];
+    entries[lastDeleted.day].splice(lastDeleted.idx, 0, lastDeleted.item);
+    tombstones.delete(makeKey(lastDeleted.day, lastDeleted.item.tz, lastDeleted.item.o, lastDeleted.item.i));
+    if(deleteLogs.length > 0 && !deleteLogs[0].undone){
+      deleteLogs[0].undone = true;
+      renderLogs();
+    }
+    renderCal();
+    document.getElementById('toast').style.display = 'none';
+    clearTimeout(window._toastT);
+    lastDeleted = null;
+  };
+
+  renderLogs();
+</script>
+</body>
+</html>
